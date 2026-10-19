@@ -22,7 +22,7 @@ export default function Gallery() {
   return (
     <div className="py-6">
       <h1 className="text-6xl">Gallery</h1>
-      <p className="mt-2 text-ink/70">Gallery strips are stored only in this browser on this device. Phone sharing is optional and uploads selected photos and clips temporarily for QR downloads.</p>
+      <p className="mt-2 text-ink/70">Gallery strips are stored only in this browser on this device.</p>
       {err && <p role="alert" className="mt-3 text-coral">{err}</p>}
       {items.length === 0 && !err && <p className="mt-10 rounded-3xl bg-mist p-10 text-center">No saved strips yet. Make one in the Studio.</p>}
       {items.length > 0 && <button className="mt-4 text-sm underline" onClick={() => confirm('Delete all saved strips?') && run(clearStrips)}>Clear all</button>}

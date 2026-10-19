@@ -77,7 +77,7 @@ export default function App() {
           </div>
           <div className="mt-8 flex flex-col gap-2 border-t border-ink/10 pt-5 text-xs text-ink/55 sm:flex-row sm:items-center sm:justify-between">
             <p>© {copyrightYear} NGORN SIVGECH. All rights reserved.</p>
-            <p>Photos stay on your device unless you choose temporary phone sharing.</p>
+            <p>Photos stay on your device and are never uploaded.</p>
           </div>
         </div>
       </footer>

@@ -8,7 +8,7 @@ const features = [
   [Palette, 'Make it yours', 'Pick a frame, add a filter, and decorate your photos with stickers.'],
   [Download, 'Ready to keep', 'Download your finished photo strip as a high-resolution PNG.'],
   [Images, 'Your own gallery', 'Save favorite strips in this browser and revisit them anytime.'],
-  [Lock, 'Private by design', 'No account needed. Photos stay in your browser unless you choose temporary phone sharing.'],
+  [Lock, 'Private by design', 'No account needed. Photos stay in your browser on this device.'],
   [Sparkles, 'A little moment of fun', 'Preview your strip as you make it, then save the final look.'],
 ] as const
 

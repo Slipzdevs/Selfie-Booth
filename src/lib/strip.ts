@@ -39,7 +39,7 @@ export const DEFAULT_DESIGN: Design = {
   gap: 24, caption: 'Selfie Booth', showDate: true,
 }
 
-const PW = 520, PH = 390, PAD = 40, FOOT = 140, QR_FOOT = 220, QR_SIZE = 160, COLS = 2
+const PW = 520, PH = 390, PAD = 40, FOOT = 140, COLS = 2
 interface StripImage {
   source: CanvasImageSource
   width: number
@@ -63,11 +63,10 @@ export function getStickerPlacement(x: number, y: number, count: number, gap: nu
 }
 
 /** Draws the full strip (the same canvas is previewed and exported). */
-export function renderStrip(canvas: HTMLCanvasElement, imgs: StripImage[], d: Design, qr?: HTMLImageElement) {
+export function renderStrip(canvas: HTMLCanvasElement, imgs: StripImage[], d: Design) {
   const rows = Math.ceil(imgs.length / COLS)
-  const footer = qr ? QR_FOOT : FOOT
   const W = PAD * 2 + PW * COLS + d.gap * (COLS - 1)
-  const H = PAD * 2 + PH * rows + d.gap * (rows - 1) + footer
+  const H = PAD * 2 + PH * rows + d.gap * (rows - 1) + FOOT
   canvas.width = W; canvas.height = H
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D is not available')
@@ -91,30 +90,20 @@ export function renderStrip(canvas: HTMLCanvasElement, imgs: StripImage[], d: De
     }
   })
   ctx.fillStyle = d.text; ctx.textAlign = 'center'
-  const footerTop = H - PAD - footer
-  const textCenter = qr ? (PAD + W - PAD - QR_SIZE - 24) / 2 : W / 2
-  const fy = qr ? footerTop + 72 : H - PAD - FOOT / 2 + 10
+  const textCenter = W / 2
+  const fy = H - PAD - FOOT / 2 + 10
   ctx.font = '600 56px system-ui, sans-serif'
   ctx.fillText(d.caption, textCenter, d.showDate ? fy : fy + 20)
   if (d.showDate) {
     ctx.font = '28px system-ui, sans-serif'
-    ctx.fillText(new Date().toLocaleDateString(), textCenter, fy + (qr ? 42 : 52))
-  }
-  if (qr) {
-    const x = W - PAD - QR_SIZE
-    const y = H - PAD - QR_SIZE
-    ctx.fillStyle = '#19191f'
-    ctx.font = '600 18px system-ui, sans-serif'
-    ctx.fillText('Scan to download', x + QR_SIZE / 2, footerTop + 31)
-    ctx.drawImage(qr, x, y, QR_SIZE, QR_SIZE)
+    ctx.fillText(new Date().toLocaleDateString(), textCenter, fy + 52)
   }
 }
 
-export async function renderBlobs(canvas: HTMLCanvasElement, blobs: Blob[], d: Design, qrDataUrl?: string) {
+export async function renderBlobs(canvas: HTMLCanvasElement, blobs: Blob[], d: Design) {
   const images = await Promise.all(blobs.map(loadBlobImage))
   try {
-    const qr = qrDataUrl ? await loadImage(qrDataUrl) : undefined
-    renderStrip(canvas, images, d, qr)
+    renderStrip(canvas, images, d)
   } finally {
     images.forEach((image) => image.close?.())
   }
@@ -137,15 +126,6 @@ function loadBlobImage(blob: Blob): Promise<StripImage> {
       reject(new Error('Captured photo could not be decoded'))
     }
     image.src = url
-  })
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Could not load QR code image'))
-    image.src = src
   })
 }
 

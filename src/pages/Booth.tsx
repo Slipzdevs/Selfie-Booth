@@ -1,9 +1,7 @@
-import { Camera, QrCode, RotateCcw, Share2 } from 'lucide-react'
-import QRCode from 'qrcode'
+import { Camera, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { recordLivePhoto } from '../lib/livePhoto'
-import { createPhoneShare } from '../lib/sharing'
 import { useCamera } from '../hooks/useCamera'
 import { useSession } from '../session'
 
@@ -14,7 +12,7 @@ const MSG: Record<string, string> = {
 }
 
 export default function Booth() {
-  const { photos, setPhotos, livePhotos, setLivePhotos, setShareUrl: saveShareUrl } = useSession()
+  const { photos, setPhotos, livePhotos, setLivePhotos } = useSession()
   const { videoRef, status, start, stop } = useCamera()
   const [count, setCount] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -22,11 +20,6 @@ export default function Booth() {
   const [auto, setAuto] = useState(true)
   const [flash, setFlash] = useState(false)
   const [capturing, setCapturing] = useState(false)
-  const [sharing, setSharing] = useState(false)
-  const [shareUrl, setShareUrl] = useState('')
-  const [shareQr, setShareQr] = useState('')
-  const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null)
-  const [shareError, setShareError] = useState('')
   const photoCount = photos.length
   const snapRef = useRef<(i: number) => void>(() => {})
   const nextSlotRef = useRef(0)
@@ -42,8 +35,6 @@ export default function Booth() {
   function snap(index: number) {
     if (busy.current || status !== 'ready') return
     busy.current = true; setCapturing(true); setError('')
-    setShareUrl(''); setShareQr(''); setShareExpiresAt(null); setShareError('')
-    saveShareUrl('')
     const isNextSlot = index === nextSlotRef.current
     const mine = ++session.current
     let n = secs; setCount(n)
@@ -87,45 +78,21 @@ export default function Booth() {
     setCapturing(false)
     setPhotos(Array(photoCount).fill(null))
     setLivePhotos(Array(photoCount).fill(null))
-    setShareUrl(''); setShareQr(''); setShareExpiresAt(null); setShareError('')
-    saveShareUrl('')
   }
   function changePhotoCount(value: number) {
     clearInterval(timer.current); session.current++; busy.current = false; setCount(null)
     setCapturing(false)
     setPhotos(Array(value).fill(null))
     setLivePhotos(Array(value).fill(null))
-    setShareUrl(''); setShareQr(''); setShareExpiresAt(null); setShareError('')
-    saveShareUrl('')
-  }
-  async function shareToPhone() {
-    if (sharing || capturing || photos.some((photo) => !photo)) return
-    setSharing(true); setShareError(''); setShareUrl(''); setShareQr(''); setShareExpiresAt(null)
-    try {
-      const share = await createPhoneShare(photos as Blob[], livePhotos)
-      setShareUrl(share.url)
-      saveShareUrl(share.url)
-      setShareExpiresAt(share.expiresAt)
-      try {
-        setShareQr(await QRCode.toDataURL(share.url, { width: 240, margin: 2, errorCorrectionLevel: 'M' }))
-      } catch (reason) {
-        setShareError(`Files uploaded, but the QR code could not be generated: ${(reason as Error).message}. Open the link shown below on your phone.`)
-      }
-    } catch (reason) {
-      setShareError(`Could not create phone download: ${(reason as Error).message}.`)
-    } finally {
-      setSharing(false)
-    }
   }
   const nextSlot = photos.findIndex((p) => !p)
-  const localPreview = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
   nextSlotRef.current = nextSlot
   snapRef.current = snap
 
   return (
     <div className="grid gap-10 py-2 lg:grid-cols-[1fr_280px]">
       <div>
-        <div className="relative aspect-[4/3] overflow-hidden grain rounded-[2rem] bg-ink shadow-lift ring-8 ring-white">
+        <div className="relative aspect-square overflow-hidden grain rounded-[2rem] bg-ink shadow-lift ring-8 ring-white sm:aspect-[4/3]">
           <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
           {status !== 'ready' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center text-paper">
@@ -153,21 +120,7 @@ export default function Booth() {
           </button>
           <button onClick={restart} className="btn btn-ghost"><RotateCcw size={16} aria-hidden /> Restart</button>
           {filled === photoCount && <Link to="/studio" onClick={stop} className="btn btn-coral">Continue to Studio</Link>}
-        {filled === photoCount && <button disabled={sharing || capturing || localPreview} onClick={shareToPhone} className="btn btn-coral">
-          <Share2 size={16} aria-hidden /> {sharing ? 'Preparing phone download…' : 'Share to phone'}
-        </button>}
       </div>
-      {filled === photoCount && <p className="mt-3 max-w-2xl text-sm text-ink/65">Create a QR code to download your photos and recorded clips on your phone. This uploads them temporarily to the server; links expire automatically.</p>}
-      {filled === photoCount && localPreview && <p className="mt-2 max-w-2xl text-sm text-ink/65">Phone sharing is disabled on localhost. Deploy this app and its API to an HTTPS address before creating a scannable QR code.</p>}
-      {shareError && <p role="alert" className="mt-3 text-sm text-coral">{shareError}</p>}
-      {shareUrl && (
-        <section className="panel mt-5 flex flex-col items-center gap-3 text-center" aria-label="Phone download QR code">
-          {shareQr ? <img src={shareQr} alt="QR code to download the captured photos and live clips on a phone" className="size-60 rounded-xl bg-white p-2" /> : <QrCode size={48} className="text-coral" aria-hidden />}
-          <h2 className="text-xl font-semibold">Scan to save on your phone</h2>
-          {shareExpiresAt && <p className="text-sm text-ink/65">Link expires {new Date(shareExpiresAt).toLocaleString()}.</p>}
-          <a href={shareUrl} className="max-w-full break-all text-sm text-coral underline">{shareUrl}</a>
-        </section>
-      )}
       </div>
       <ul className="grid grid-cols-2 content-start gap-3 self-start">
         {urls.map((u, i) => (

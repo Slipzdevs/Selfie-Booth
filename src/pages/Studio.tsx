@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
-import QRCode from 'qrcode'
 import { Link } from 'react-router'
 import { saveStrip } from '../lib/gallery'
 import { canvasToPng, DEFAULT_DESIGN, downloadBlob, FILTERS, getStickerPlacement, renderBlobs, TEMPLATES, type Filter } from '../lib/strip'
@@ -9,36 +8,40 @@ const STICKERS = [
   ['✨', 'Sparkles'], ['❤️', 'Red heart'], ['💖', 'Sparkling heart'], ['🥰', 'Smiling face with hearts'],
   ['😎', 'Smiling face with sunglasses'], ['😂', 'Face with tears of joy'], ['🎀', 'Ribbon'],
   ['⭐', 'Star'], ['🌸', 'Cherry blossom'], ['🦋', 'Butterfly'], ['🫶', 'Heart hands'],
-  ['🍒', 'Cherries'], ['🎞️', 'Film frames'], ['☁️', 'Cloud'], ['🌈', 'Rainbow'], ['', 'No sticker'],
+  ['🍒', 'Cherries'], ['🎞️', 'Film frames'], ['☁️', 'Cloud'], ['🌈', 'Rainbow'],
+  ['💕', 'Two hearts'], ['💘', 'Heart with arrow'], ['💌', 'Love letter'], ['💋', 'Kiss mark'],
+  ['😊', 'Smiling face'], ['🥳', 'Party face'], ['🤍', 'White heart'], ['💫', 'Dizzy star'],
+  ['🌷', 'Tulip'], ['🌻', 'Sunflower'], ['🍓', 'Strawberry'], ['🍋', 'Lemon'],
+  ['🐻', 'Bear'], ['🐱', 'Cat face'], ['🐰', 'Rabbit face'], ['🐸', 'Frog face'],
+  ['🧸', 'Teddy bear'], ['👑', 'Crown'], ['💍', 'Ring'], ['🪩', 'Disco ball'],
+  ['🎵', 'Music note'], ['🎧', 'Headphones'], ['📸', 'Camera'], ['🎉', 'Party popper'],
+  ['☀️', 'Sun'], ['🌙', 'Moon'], ['🍀', 'Four-leaf clover'], ['🪻', 'Hyacinth'], ['', 'No sticker'],
 ] as const
 
 export default function Studio() {
-  const { photos, setPhotos, livePhotos, setLivePhotos, design: d, setDesign, shareUrl, setShareUrl } = useSession()
+  const { photos, setPhotos, livePhotos, setLivePhotos, design: d, setDesign } = useSession()
   const canvas = useRef<HTMLCanvasElement>(null)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
-  const [rendered, setRendered] = useState<{ photos: typeof photos; design: typeof d; shareUrl: string } | null>(null)
+  const [rendered, setRendered] = useState<{ photos: typeof photos; design: typeof d } | null>(null)
   const ready = photos.length > 0 && photos.every(Boolean)
-  const previewReady = rendered?.photos === photos && rendered.design === d && rendered.shareUrl === shareUrl
+  const previewReady = rendered?.photos === photos && rendered.design === d
 
   useEffect(() => {
     if (!ready || !canvas.current) return
     let live = true
     const target = canvas.current
     const render = async () => {
-      const qr = shareUrl
-        ? await QRCode.toDataURL(shareUrl, { width: 240, margin: 2, errorCorrectionLevel: 'H' })
-        : undefined
       if (live) {
         const preview = document.createElement('canvas')
-        await renderBlobs(preview, photos as Blob[], d, qr)
+        await renderBlobs(preview, photos as Blob[], d)
         if (!live) return
         const context = target.getContext('2d')
         if (!context) throw new Error('Canvas 2D is not available')
         target.width = preview.width
         target.height = preview.height
         context.drawImage(preview, 0, 0)
-        setRendered({ photos, design: d, shareUrl })
+        setRendered({ photos, design: d })
       }
     }
     render().catch((reason: unknown) => {
@@ -48,7 +51,7 @@ export default function Studio() {
       }
     })
     return () => { live = false }
-  }, [photos, d, ready, shareUrl])
+  }, [photos, d, ready])
 
   const set = (p: Partial<typeof d>) => setDesign({ ...d, ...p })
   function placeSticker(event: MouseEvent<HTMLCanvasElement>) {
@@ -90,7 +93,6 @@ export default function Studio() {
     setPhotos(Array(photos.length).fill(null))
     setLivePhotos(Array(livePhotos.length).fill(null))
     setDesign(DEFAULT_DESIGN)
-    setShareUrl('')
     setMsg('Captured photos and strip design cleared.')
   }
   const field = 'mt-1 w-full rounded-xl border border-ink/20 bg-white px-3 py-2'
@@ -101,9 +103,10 @@ export default function Studio() {
           <>
             <p className="text-center text-sm text-ink/70">
               Choose a sticker, then click a photo to add it. Repeat to add different stickers.
-              {shareUrl ? ' The QR code is added at the bottom of the strip and opens your phone downloads.' : ' Use “Share to phone” in the booth to add a scannable QR code at the bottom of the strip.'}
             </p>
-            {!previewReady && <p role="status" className="text-sm text-ink/60">Updating photo strip…</p>}
+            <p role="status" aria-live="polite" className="min-h-5 text-sm text-ink/60">
+              {!previewReady && 'Updating photo strip…'}
+            </p>
             <canvas ref={canvas} onClick={placeSticker} aria-label="Photo strip preview. Click a photo to add the selected sticker." className="max-h-[80vh] w-auto max-w-full cursor-crosshair shadow-2xl" />
           </>
         ) : (
@@ -149,14 +152,18 @@ export default function Studio() {
           <input type="range" min={0} max={60} value={d.gap} onChange={(e) => set({ gap: +e.target.value })} className="w-full" /></label>
         <label className="block">Caption<input value={d.caption} maxLength={30} onChange={(e) => set({ caption: e.target.value })} className={field} /></label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={d.showDate} onChange={(e) => set({ showDate: e.target.checked })} /> Show date</label>
-        <div className="flex flex-wrap gap-2">
-          <button disabled={!ready || !previewReady || busy} onClick={() => act('download')} className="btn btn-coral">{busy ? 'Working…' : 'Download PNG'}</button>
-          <button disabled={!ready || !previewReady || busy} onClick={() => act('save')} className="btn btn-ink">Save to gallery</button>
-          <button disabled={!photos.some(Boolean) || busy} onClick={clearPhotos} className="btn btn-ghost">Clear photos</button>
-          <button onClick={() => setDesign(DEFAULT_DESIGN)} className="btn btn-ghost">Reset</button>
-          <Link to="/booth" className="btn btn-ghost">Back to booth</Link>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button disabled={!ready || !previewReady || busy} onClick={() => act('download')} className="btn btn-coral justify-center px-3 text-sm">{busy ? 'Working…' : 'Download PNG'}</button>
+            <button disabled={!ready || !previewReady || busy} onClick={() => act('save')} className="btn btn-ink justify-center px-3 text-sm">Save to gallery</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button disabled={!photos.some(Boolean) || busy} onClick={clearPhotos} className="btn btn-ghost justify-center px-3 text-sm">Clear photos</button>
+            <button onClick={() => setDesign(DEFAULT_DESIGN)} className="btn btn-ghost justify-center px-3 text-sm">Reset</button>
+          </div>
+          <Link to="/booth" className="btn btn-ghost w-full justify-center text-sm">Back to booth</Link>
         </div>
-        {msg && <p role="status" className="text-sm">{msg}</p>}
+        <p role="status" aria-live="polite" className="min-h-10 text-sm">{msg}</p>
       </div>
     </div>
   )
