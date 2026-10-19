@@ -18,11 +18,14 @@ const STICKERS = [
   ['☀️', 'Sun'], ['🌙', 'Moon'], ['🍀', 'Four-leaf clover'], ['🪻', 'Hyacinth'], ['', 'No sticker'],
 ] as const
 
+type StudioTab = 'template' | 'filter' | 'sticker'
+
 export default function Studio() {
   const { photos, setPhotos, livePhotos, setLivePhotos, design: d, setDesign } = useSession()
   const canvas = useRef<HTMLCanvasElement>(null)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [activeTab, setActiveTab] = useState<StudioTab>('template')
   const [rendered, setRendered] = useState<{ photos: typeof photos; design: typeof d } | null>(null)
   const ready = photos.length > 0 && photos.every(Boolean)
   const previewReady = rendered?.photos === photos && rendered.design === d
@@ -98,7 +101,7 @@ export default function Studio() {
   const field = 'mt-1 w-full rounded-xl border border-ink/20 bg-white px-3 py-2'
   return (
     <div className="grid gap-8 py-6 lg:grid-cols-[1fr_340px]">
-      <div className="flex flex-col items-center gap-3 rounded-[2rem] bg-mist p-8">
+      <div className="order-1 flex flex-col items-center gap-3 rounded-[2rem] bg-mist p-8 lg:order-1">
         {ready ? (
           <>
             <p className="text-center text-sm text-ink/70">
@@ -120,38 +123,68 @@ export default function Studio() {
           </div>
         )}
       </div>
-      <div className="panel space-y-5 self-start lg:sticky lg:top-24">
-        <fieldset><legend className="font-medium">Template</legend>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {Object.entries(TEMPLATES).map(([n, t]) => (
-              <button key={n} aria-pressed={d.template === n} onClick={() => set({ template: n, ...t })}
-                className={`rounded-xl border-2 px-3 py-2 ${d.template === n ? 'border-coral bg-coral/10 font-semibold' : 'border-transparent bg-mist hover:bg-mist/70'}`}>
-                {d.template === n ? '✓ ' : ''}{n}
-              </button>))}
-          </div></fieldset>
-        <div className="grid grid-cols-2 gap-3">
-          <label>Frame<input type="color" value={d.frame} onChange={(e) => set({ frame: e.target.value })} className={field} /></label>
-          <label>Text<input type="color" value={d.text} onChange={(e) => set({ text: e.target.value })} className={field} /></label>
+      <div className="panel order-2 space-y-5 self-start lg:order-2 lg:sticky lg:top-24">
+        <nav role="tablist" aria-label="Studio tools" className="grid grid-cols-3 border-b border-ink/10">
+          {(['template', 'filter', 'sticker'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              id={`studio-tab-${tab}`}
+              aria-selected={activeTab === tab}
+              aria-controls="studio-tab-panel"
+              onClick={() => setActiveTab(tab)}
+              className={`border-b-2 px-2 py-3 text-sm font-semibold capitalize transition-colors ${
+                activeTab === tab ? 'border-coral text-coral' : 'border-transparent text-ink/60 hover:text-ink'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </nav>
+        <div id="studio-tab-panel" role="tabpanel" aria-labelledby={`studio-tab-${activeTab}`} className="min-h-48 space-y-5">
+          {activeTab === 'template' && (
+            <>
+              <fieldset><legend className="font-medium">Template</legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {Object.entries(TEMPLATES).map(([n, t]) => (
+                    <button key={n} aria-pressed={d.template === n} onClick={() => set({ template: n, ...t })}
+                      className={`rounded-xl border-2 px-3 py-2 ${d.template === n ? 'border-coral bg-coral/10 font-semibold' : 'border-transparent bg-mist hover:bg-mist/70'}`}>
+                      {d.template === n ? '✓ ' : ''}{n}
+                    </button>))}
+                </div></fieldset>
+              <div className="grid grid-cols-2 gap-3">
+                <label>Frame<input type="color" value={d.frame} onChange={(e) => set({ frame: e.target.value })} className={field} /></label>
+                <label>Text<input type="color" value={d.text} onChange={(e) => set({ text: e.target.value })} className={field} /></label>
+              </div>
+              <label className="block">Spacing: {d.gap}px
+                <input type="range" min={0} max={60} value={d.gap} onChange={(e) => set({ gap: +e.target.value })} className="w-full" /></label>
+              <label className="block">Caption<input value={d.caption} maxLength={30} onChange={(e) => set({ caption: e.target.value })} className={field} /></label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={d.showDate} onChange={(e) => set({ showDate: e.target.checked })} /> Show date</label>
+            </>
+          )}
+          {activeTab === 'filter' && (
+            <fieldset><legend className="font-medium">Filter</legend>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(Object.keys(FILTERS) as Filter[]).map((f) => (
+                  <button key={f} aria-pressed={d.filter === f} onClick={() => set({ filter: f })}
+                    className={`min-h-10 rounded-full px-3 py-2 text-sm capitalize ${d.filter === f ? 'bg-ink text-paper' : 'bg-mist'}`}>{d.filter === f ? '✓ ' : ''}{f}</button>))}
+              </div></fieldset>
+          )}
+          {activeTab === 'sticker' && (
+            <>
+              <fieldset><legend className="font-medium">Stickers</legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {STICKERS.map(([sticker, label]) => (
+                    <button key={label} aria-pressed={d.sticker === sticker} aria-label={label} title={label} onClick={() => set({ sticker })}
+                      className={`size-11 rounded-xl text-xl ${d.sticker === sticker ? 'bg-coral/20 ring-2 ring-coral' : 'bg-mist'}`}>{sticker || '∅'}</button>))}
+                </div></fieldset>
+              <button disabled={d.stickerPositions.length === 0} onClick={() => set({ stickerPositions: [] })} className="rounded-full bg-mist px-3 py-2 text-sm disabled:opacity-50">
+                Remove placed stickers ({d.stickerPositions.length})
+              </button>
+            </>
+          )}
         </div>
-        <fieldset><legend className="font-medium">Filter</legend>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {(Object.keys(FILTERS) as Filter[]).map((f) => (
-              <button key={f} aria-pressed={d.filter === f} onClick={() => set({ filter: f })}
-                className={`min-h-10 rounded-full px-3 py-2 text-sm capitalize ${d.filter === f ? 'bg-ink text-paper' : 'bg-mist'}`}>{d.filter === f ? '✓ ' : ''}{f}</button>))}
-          </div></fieldset>
-        <fieldset><legend className="font-medium">Stickers</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {STICKERS.map(([sticker, label]) => (
-              <button key={label} aria-pressed={d.sticker === sticker} aria-label={label} title={label} onClick={() => set({ sticker })}
-                className={`size-11 rounded-xl text-xl ${d.sticker === sticker ? 'bg-coral/20 ring-2 ring-coral' : 'bg-mist'}`}>{sticker || '∅'}</button>))}
-          </div></fieldset>
-          <button disabled={d.stickerPositions.length === 0} onClick={() => set({ stickerPositions: [] })} className="rounded-full bg-mist px-3 py-2 text-sm disabled:opacity-50">
-            Remove placed stickers ({d.stickerPositions.length})
-          </button>
-        <label className="block">Spacing: {d.gap}px
-          <input type="range" min={0} max={60} value={d.gap} onChange={(e) => set({ gap: +e.target.value })} className="w-full" /></label>
-        <label className="block">Caption<input value={d.caption} maxLength={30} onChange={(e) => set({ caption: e.target.value })} className={field} /></label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={d.showDate} onChange={(e) => set({ showDate: e.target.checked })} /> Show date</label>
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <button disabled={!ready || !previewReady || busy} onClick={() => act('download')} className="btn btn-coral justify-center px-3 text-sm">{busy ? 'Working…' : 'Download PNG'}</button>

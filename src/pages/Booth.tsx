@@ -2,6 +2,7 @@ import { Camera, RotateCcw } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { recordLivePhoto } from '../lib/livePhoto'
+import { FILTERS } from '../lib/strip'
 import { useCamera } from '../hooks/useCamera'
 import { useSession } from '../session'
 
@@ -12,7 +13,7 @@ const MSG: Record<string, string> = {
 }
 
 export default function Booth() {
-  const { photos, setPhotos, livePhotos, setLivePhotos } = useSession()
+  const { photos, setPhotos, livePhotos, setLivePhotos, design } = useSession()
   const { videoRef, status, start, stop } = useCamera()
   const [count, setCount] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -93,7 +94,7 @@ export default function Booth() {
     <div className="grid gap-10 py-2 lg:grid-cols-[1fr_280px]">
       <div>
         <div className="relative aspect-square overflow-hidden grain rounded-[2rem] bg-ink shadow-lift ring-8 ring-white sm:aspect-[4/3]">
-          <video ref={videoRef} playsInline muted className="h-full w-full -scale-x-100 object-cover" />
+          <video ref={videoRef} playsInline muted style={{ filter: FILTERS[design.filter] }} className="h-full w-full -scale-x-100 object-cover" />
           {status !== 'ready' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center text-paper">
               {MSG[status] && <p role="alert">{MSG[status]}</p>}
@@ -125,7 +126,7 @@ export default function Booth() {
       <ul className="grid grid-cols-2 content-start gap-3 self-start">
         {urls.map((u, i) => (
           <li key={i} className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-white p-1.5 shadow-lift">
-            {u && <img src={u} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />}
+            {u && <img src={u} alt={`Photo ${i + 1}`} style={{ filter: FILTERS[design.filter] }} className="h-full w-full object-cover" />}
             <span className="absolute left-2 top-2 rounded bg-paper/90 px-2 text-xs">0{i + 1}</span>
             {u && <button disabled={status !== 'ready' || count !== null || capturing} onClick={() => snap(i)} className="absolute bottom-2 right-2 rounded-full bg-paper px-3 py-1 text-xs disabled:opacity-40">Retake</button>}
           </li>
