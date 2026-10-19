@@ -40,6 +40,12 @@ export const DEFAULT_DESIGN: Design = {
 }
 
 const PW = 520, PH = 390, PAD = 40, FOOT = 140, QR_FOOT = 220, QR_SIZE = 160, COLS = 2
+interface StripImage {
+  source: CanvasImageSource
+  width: number
+  height: number
+  close?: () => void
+}
 
 export function getStickerPlacement(x: number, y: number, count: number, gap: number): Omit<StickerPlacement, 'sticker'> | null {
   for (let frame = 0; frame < count; frame++) {
@@ -57,7 +63,7 @@ export function getStickerPlacement(x: number, y: number, count: number, gap: nu
 }
 
 /** Draws the full strip (the same canvas is previewed and exported). */
-export function renderStrip(canvas: HTMLCanvasElement, imgs: ImageBitmap[], d: Design, qr?: HTMLImageElement) {
+export function renderStrip(canvas: HTMLCanvasElement, imgs: StripImage[], d: Design, qr?: HTMLImageElement) {
   const rows = Math.ceil(imgs.length / COLS)
   const footer = qr ? QR_FOOT : FOOT
   const W = PAD * 2 + PW * COLS + d.gap * (COLS - 1)
@@ -74,7 +80,7 @@ export function renderStrip(canvas: HTMLCanvasElement, imgs: ImageBitmap[], d: D
     ctx.save()
     ctx.beginPath(); ctx.roundRect(x, y, PW, PH, 28); ctx.clip()
     ctx.filter = FILTERS[d.filter]
-    ctx.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, PW, PH)
+    ctx.drawImage(im.source, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, PW, PH)
     ctx.restore()
     for (const placement of d.stickerPositions) {
       if (placement.frame !== i) continue
@@ -105,13 +111,33 @@ export function renderStrip(canvas: HTMLCanvasElement, imgs: ImageBitmap[], d: D
 }
 
 export async function renderBlobs(canvas: HTMLCanvasElement, blobs: Blob[], d: Design, qrDataUrl?: string) {
-  const bmps = await Promise.all(blobs.map((b) => createImageBitmap(b)))
+  const images = await Promise.all(blobs.map(loadBlobImage))
   try {
     const qr = qrDataUrl ? await loadImage(qrDataUrl) : undefined
-    renderStrip(canvas, bmps, d, qr)
+    renderStrip(canvas, images, d, qr)
   } finally {
-    bmps.forEach((b) => b.close())
+    images.forEach((image) => image.close?.())
   }
+}
+
+function loadBlobImage(blob: Blob): Promise<StripImage> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const image = new Image()
+    image.onload = () => {
+      URL.revokeObjectURL(url)
+      if (!image.naturalWidth || !image.naturalHeight) {
+        reject(new Error('Captured photo could not be decoded'))
+        return
+      }
+      resolve({ source: image, width: image.naturalWidth, height: image.naturalHeight })
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Captured photo could not be decoded'))
+    }
+    image.src = url
+  })
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -128,10 +154,23 @@ export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
     canvas.toBlob((b) => (b ? res(b) : rej(new Error('PNG export failed'))), 'image/png'))
 }
 
-export function downloadBlob(blob: Blob) {
+export async function downloadBlob(blob: Blob): Promise<void> {
+  const filename = `selfie-booth-${new Date().toISOString().slice(0, 10)}.png`
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  const file = new File([blob], filename, { type: blob.type || 'image/png' })
+  if (isIOS && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: 'Selfie Booth photo strip' })
+    return
+  }
+
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = url; a.download = `selfie-booth-${new Date().toISOString().slice(0, 10)}.png`
+  a.href = url
+  a.download = filename
+  a.style.display = 'none'
+  document.body.appendChild(a)
   a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

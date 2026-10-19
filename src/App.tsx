@@ -12,15 +12,15 @@ const copyrightYear = new Date().getFullYear()
 export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-3 z-20 mx-auto mt-3 flex w-[calc(100%-1.5rem)] max-w-6xl flex-wrap items-center justify-between gap-2 rounded-full border border-ink/10 bg-paper/80 px-4 py-2 shadow-sm backdrop-blur-md sm:px-6">
-        <NavLink to="/" className="flex items-center gap-2 font-display text-2xl">
+      <header className="mx-auto mt-3 flex w-[calc(100%-1.5rem)] max-w-6xl flex-col items-stretch gap-2 rounded-3xl border border-ink/10 bg-paper/80 px-3 py-3 shadow-sm backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:rounded-full sm:px-6">
+        <NavLink to="/" className="flex items-center justify-center gap-2 whitespace-nowrap font-display text-xl sm:justify-start sm:text-2xl">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-coral text-white"><Camera size={16} aria-hidden /></span> Selfie Booth
         </NavLink>
-        <nav aria-label="Main" className="flex gap-1 text-sm">
+        <nav aria-label="Main" className="flex w-full items-center justify-between gap-1 text-xs sm:w-auto sm:justify-center sm:gap-1 sm:text-sm">
           {links.map(([to, label]) => (
             <NavLink key={to} to={to} end
               className={({ isActive }) =>
-                `rounded-full px-3 py-2 font-medium transition-colors ${isActive ? 'bg-ink text-paper' : 'hover:bg-mist'}`}>
+                `whitespace-nowrap rounded-full px-2 py-2 text-center font-medium transition-colors sm:px-3 ${isActive ? 'bg-ink text-paper' : 'hover:bg-mist'}`}>
               {label}
             </NavLink>
           ))}

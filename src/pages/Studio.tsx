@@ -41,10 +41,10 @@ export default function Studio() {
         setRendered({ photos, design: d, shareUrl })
       }
     }
-    render().catch(() => {
+    render().catch((reason: unknown) => {
       if (live) {
         setRendered(null)
-        setMsg('Could not render the strip.')
+        setMsg(`Could not render the strip: ${reason instanceof Error ? reason.message : String(reason)}`)
       }
     })
     return () => { live = false }
@@ -74,17 +74,24 @@ export default function Studio() {
     setBusy(true); setMsg('')
     try {
       const png = await canvasToPng(canvas.current)
-      if (kind === 'download') downloadBlob(png)
+      if (kind === 'download') await downloadBlob(png)
       else await saveStrip(png)
-      setPhotos(Array(photos.length).fill(null))
-      setLivePhotos(Array(livePhotos.length).fill(null))
-      setDesign(DEFAULT_DESIGN)
-      setShareUrl('')
       setMsg(kind === 'save'
-        ? 'Saved to your gallery. Photos and template settings have been cleared.'
-        : 'Download started. Photos and template settings have been cleared.')
-    } catch (e) { setMsg(`${kind === 'save' ? 'Save' : 'Export'} failed: ${(e as Error).message}. You can still download.`) }
+        ? 'Saved to your gallery. Your photos and design are still here until you clear them.'
+        : 'Download started. Your photos and design are still here until you clear them.')
+    } catch (reason) {
+      if (kind === 'download' && reason instanceof Error && reason.name === 'AbortError') setMsg('Download cancelled.')
+      else setMsg(`${kind === 'save' ? 'Save' : 'Download'} failed: ${reason instanceof Error ? reason.message : String(reason)}. Please try again.`)
+    }
     finally { setBusy(false) }
+  }
+  function clearPhotos() {
+    if (!window.confirm('Clear all captured photos and reset the strip design?')) return
+    setPhotos(Array(photos.length).fill(null))
+    setLivePhotos(Array(livePhotos.length).fill(null))
+    setDesign(DEFAULT_DESIGN)
+    setShareUrl('')
+    setMsg('Captured photos and strip design cleared.')
   }
   const field = 'mt-1 w-full rounded-xl border border-ink/20 bg-white px-3 py-2'
   return (
@@ -145,6 +152,7 @@ export default function Studio() {
         <div className="flex flex-wrap gap-2">
           <button disabled={!ready || !previewReady || busy} onClick={() => act('download')} className="btn btn-coral">{busy ? 'Working…' : 'Download PNG'}</button>
           <button disabled={!ready || !previewReady || busy} onClick={() => act('save')} className="btn btn-ink">Save to gallery</button>
+          <button disabled={!photos.some(Boolean) || busy} onClick={clearPhotos} className="btn btn-ghost">Clear photos</button>
           <button onClick={() => setDesign(DEFAULT_DESIGN)} className="btn btn-ghost">Reset</button>
           <Link to="/booth" className="btn btn-ghost">Back to booth</Link>
         </div>

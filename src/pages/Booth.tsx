@@ -58,7 +58,6 @@ export default function Booth() {
       const c = document.createElement('canvas')
       c.width = v.videoWidth; c.height = v.videoHeight
       const ctx = c.getContext('2d')!
-      ctx.translate(c.width, 0); ctx.scale(-1, 1) // match mirrored preview
       ctx.drawImage(v, 0, 0)
       c.toBlob((b) => {
         if (mine !== session.current) return
@@ -171,7 +170,7 @@ export default function Booth() {
       <ul className="grid grid-cols-2 content-start gap-3 self-start">
         {urls.map((u, i) => (
           <li key={i} className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-white p-1.5 shadow-lift">
-            {u && <img src={u} alt={`Photo ${i + 1}`} className="h-full w-full -scale-x-100 object-cover" />}
+            {u && <img src={u} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />}
             <span className="absolute left-2 top-2 rounded bg-paper/90 px-2 text-xs">0{i + 1}</span>
             {u && <button disabled={status !== 'ready' || count !== null || capturing} onClick={() => snap(i)} className="absolute bottom-2 right-2 rounded-full bg-paper px-3 py-1 text-xs disabled:opacity-40">Retake</button>}
           </li>
